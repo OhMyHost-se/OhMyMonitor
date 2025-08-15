@@ -1,0 +1,101 @@
+name: Monitoring checks
+
+on:
+  workflow_call:
+    inputs:
+      checks_json:
+        description: 'JSON array of checks [{ "url": "...", "textToFind": ["..."], "makeScreenshot": true }]'
+        required: true
+        type: string
+      user_agent:
+        description: 'Custom User-Agent'
+        required: false
+        type: string
+        default: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+      viewport_width:
+        description: 'Viewport width'
+        required: false
+        type: string
+        default: '1920'
+      viewport_height:
+        description: 'Viewport height'
+        required: false
+        type: string
+        default: '1080'
+      exclude_analytics:
+        description: 'Set true to add X-Monitoring headers'
+        required: false
+        type: string
+        default: 'true'
+      add_headers:
+        description: 'Set false to disable monitoring headers'
+        required: false
+        type: string
+        default: 'true'
+      resource_ignore_patterns:
+        description: 'JSON array of {pattern, reason}'
+        required: false
+        type: string
+        default: '[]'
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      MONITORING_CHECKS: ${{ inputs.checks_json }}
+      MONITORING_USER_AGENT: ${{ inputs.user_agent }}
+      MONITORING_VIEWPORT_WIDTH: ${{ inputs.viewport_width }}
+      MONITORING_VIEWPORT_HEIGHT: ${{ inputs.viewport_height }}
+      MONITORING_EXCLUDE_ANALYTICS: ${{ inputs.exclude_analytics }}
+      MONITORING_ADD_HEADERS: ${{ inputs.add_headers }}
+      RESOURCE_IGNORE_PATTERNS: ${{ inputs.resource_ignore_patterns }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        id: setup-node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Restore npm cache
+        id: npm-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ steps.setup-node.outputs.node-version }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ steps.setup-node.outputs.node-version }}-npm-
+
+      - name: Install dependencies
+        run: npm install puppeteer@24.10.0
+
+      - name: Save npm cache
+        if: steps.npm-cache.outputs.cache-hit == 'false'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ steps.setup-node.outputs.node-version }}-npm-${{ hashFiles('package-lock.json') }}
+
+      - name: Run monitoring script
+        run: node .github/scripts/monitoring-checks.js
+
+      - name: Check if PNG exists
+        id: check-png
+        run: |
+          if compgen -G "*.png" > /dev/null; then
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload screenshots
+        if: always() && steps.check-png.outputs.found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitoring-screenshots
+          path: "*.png"
+          retention-days: 7
