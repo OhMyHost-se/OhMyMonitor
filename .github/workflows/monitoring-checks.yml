@@ -52,8 +52,12 @@ jobs:
       RESOURCE_IGNORE_PATTERNS: ${{ inputs.resource_ignore_patterns }}
 
     steps:
-      - name: Checkout repo
+      - name: Checkout OhMyMonitor
         uses: actions/checkout@v4
+        with:
+          repository: OhMyHost-se/OhMyMonitor
+          ref: v1
+          path: ohmymonitor
 
       - name: Setup Node.js
         id: setup-node
@@ -81,7 +85,7 @@ jobs:
           key: ${{ runner.os }}-node-${{ steps.setup-node.outputs.node-version }}-npm-${{ hashFiles('package-lock.json') }}
 
       - name: Run monitoring script
-        run: node .github/scripts/monitoring-checks.js
+        run: node ohmymonitor/.github/scripts/monitoring-checks.js
 
       - name: Check if PNG exists
         id: check-png
