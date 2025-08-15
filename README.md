@@ -13,12 +13,43 @@ A GitHub Actions-based website monitoring tool that performs automated health ch
 ## Usage
 
 ```yaml
-- uses: ./.github/workflows/monitoring-checks.yml
-  with:
-    checks_json: '[{"url": "https://example.com", "textToFind": ["Hello World"], "makeScreenshot": true}]'
-    user_agent: 'Mozilla/5.0 (compatible; Googlebot/2.1)'
-    viewport_width: '1920'
-    viewport_height: '1080'
+name: Monitoring checks
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    uses: OhMyHost-se/ohmymonitor/.github/workflows/monitoring-checks.yml@v1
+    with:
+      checks_json: |
+        [
+            {
+                "url": "https://ohmyhost.se",
+                "textToFind":
+                [
+                    "We develop and migrate",
+                    "Our solution guarantees zero vendor lock-in"
+                ],
+                "makeScreenshot": true
+            },
+            {
+                "url": "https://ohmyhost.se/sv",
+                "textToFind":
+                [
+                    "Vi övervakar aktivt din webbplats"
+                ],
+                "makeScreenshot": false
+            }
+        ]
+      user_agent: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+      viewport_width: "1440"
+      viewport_height: "900"
+      exclude_analytics: "true"
+      add_headers: "true"
+      resource_ignore_patterns: '[{"pattern": "google-analytics\\.com", "reason": "GA"},{"pattern":"cloudflareinsights\\.com","reason":"CF Analytics"}]'
 ```
 
 ## License
